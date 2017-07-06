@@ -2,9 +2,13 @@
 #include <cstring>
 #include <regex>
 
-#include <logging.hh>
-#include <shared.hh>
-#include <download.hh>
+#include "logging.hh"
+#include "shared.hh"
+#include "download.hh"
+#include "archive.hh"
+#include "compression.hh"
+#include "fs-accessor.hh"
+#include "nar-accessor.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -12,6 +16,8 @@
 
 #define FUSE_USE_VERSION 30
 #include <fuse.h>
+
+#include <nlohmann/json.hpp>
 
 using namespace nix;
 
@@ -24,9 +30,12 @@ PathSeq buildidPath{"lib", "debug", ".build-id"};
 
 std::regex debugFileRegex("^[0-9a-f]{38}\\.debug$");
 
-std::vector<std::string> debugInfoServers{"http://127.0.0.5/serve-dwarffs"};
+std::vector<std::string> debugInfoServers{"https://cache.nixos.org/debuginfo"};
 
-Path cacheDir = "/tmp/raw-dwarffs";
+/* How long to remember negative lookups. */
+unsigned int negativeTTL = 24 * 60 * 60;
+
+Path cacheDir;
 
 struct DebugFile
 {
@@ -75,49 +84,147 @@ std::string toBuildId(const PathSeq & path)
     return path[buildidPath.size()] + std::string(path[buildidPath.size() + 1], 0, 38);
 }
 
-std::shared_ptr<DebugFile> haveDebugFile(const std::string & buildId)
+std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bool download)
 {
-    auto i = files.find(buildId);
-
-    if (i != files.end()) {
-        assert(i->second);
-        return i->second;
-    }
-
     auto path = cacheDir + "/" + buildId;
-    printError("CHECK %s", path);
 
     struct stat st;
     if (stat(path.c_str(), &st) == 0) {
         if (!S_ISREG(st.st_mode)) return nullptr;
-        auto file = std::make_shared<DebugFile>();
-        file->path = path;
-        file->size = st.st_size;
-        return file;
-    }
 
-    if (errno != ENOENT) return nullptr;
+        if (st.st_size != 0) {
+            debug("got cached '%s'", path);
+            auto file = std::make_shared<DebugFile>();
+            file->path = path;
+            file->size = st.st_size;
+            return file;
+        } else if (st.st_mtime > time(0) - negativeTTL) {
+            debug("got negative cached '%s'", path);
+            return nullptr;
+        }
 
-    printError("CHECK SERVER %s", path);
+    } else if (errno != ENOENT)
+          return nullptr;
 
-    for (auto & server : debugInfoServers) {
-        DownloadRequest req(server + "/" + buildId);
-        printInfo("checking '%s'", req.uri);
+    std::function<std::shared_ptr<DebugFile>(std::string)> tryUri;
+
+    tryUri = [&](std::string uri) {
+        DownloadRequest req(uri);
+        debug("downloading '%s'", uri);
+
         try {
+
             auto res = getDownloader()->download(req);
             assert(res.data);
-            writeFile(path, *res.data);
+
+            /* Decompress .xz files. */
+            if (std::string(*res.data, 0, 5) == "\xfd" "7zXZ") {
+                res.data = decompress("xz", *res.data);
+            }
+
+            /* If this is an ELF file, assume it's the raw debug info
+               file. */
+            if (std::string(*res.data, 0, 4) == "\x7f" "ELF") {
+                debug("got ELF debug info file for '%s' from '%s'", buildId, uri);
+                writeFile(path, *res.data);
+            }
+
+            /* If this is a JSON file, assume it's a redirect
+               file. This is used in cache.nixos.org to redirect to
+               the NAR file containing the debug info files for a
+               particular store path. */
+            else if (std::string(*res.data, 0, 1) == "{") {
+                auto json = nlohmann::json::parse(*res.data);
+
+                // FIXME
+                std::string archive = json["archive"];
+                auto uri2 = dirOf(uri) + "/" + archive;
+                return tryUri(uri2);
+            }
+
+            /* If this is a NAR file, extract all debug info file,
+               not just the one we need right now. After all, disk
+               space is cheap but latency isn't. */
+            else if (hasPrefix(*res.data, std::string("\x0d\x00\x00\x00\x00\x00\x00\x00", 8) + narVersionMagic1)) {
+
+                auto accessor = makeNarAccessor(make_ref<std::string>(*res.data));
+
+                std::function<void(const Path &)> doPath;
+
+                std::regex debugFileRegex("^/lib/debug/\\.build-id/[0-9a-f]{2}/[0-9a-f]{38}\\.debug$");
+                std::string debugFilePrefix = "/lib/debug/.build-id/";
+
+                doPath = [&](const Path & curPath) {
+                    auto st = accessor->stat(curPath);
+
+                    if (st.type == FSAccessor::Type::tDirectory) {
+                        for (auto & name : accessor->readDirectory(curPath))
+                            doPath(curPath + "/" + name);
+                    }
+
+                    else if (st.type == FSAccessor::Type::tRegular && std::regex_match(curPath, debugFileRegex)) {
+                        std::string buildId2 =
+                            std::string(curPath, debugFilePrefix.size(), 2)  +
+                            std::string(curPath, debugFilePrefix.size() + 3, 38);
+
+                        debug("got ELF debug info file for '%s' from NAR at '%s'", buildId2, uri);
+
+                        writeFile(cacheDir + "/" + buildId2, accessor->readFile(curPath));
+                    }
+                };
+
+                doPath("");
+
+                /* Check if we actually got the debug info file we
+                   want. */
+                return haveDebugFileUncached(buildId, false);
+            }
+
+            else {
+                printError("got unsupported data from '%s'", uri);
+                return std::shared_ptr<DebugFile>();
+            }
+
             auto file = std::make_shared<DebugFile>();
             file->path = path;
             file->size = res.data->size();
             return file;
+
         } catch (DownloadError & e) {
             if (e.error != Downloader::NotFound)
-                printError("while downloading '%s': %s", req.uri, e.what());
+                printError("while downloading '%s': %s", uri, e.what());
+        }
+
+        return std::shared_ptr<DebugFile>();
+    };
+
+    if (download) {
+        for (auto & server : debugInfoServers) {
+            printInfo("fetching '%s' from '%s'...", buildId, server);
+            auto file = tryUri(server + "/" + buildId);
+            if (file) return file;
         }
     }
 
+    /* Write an empty marker to cache negative lookups. */
+    writeFile(path, "");
+
     return nullptr;
+}
+
+std::shared_ptr<DebugFile> haveDebugFile(const std::string & buildId)
+{
+    auto i = files.find(buildId);
+
+    if (i != files.end())
+        // FIXME: respect TTL
+        return i->second;
+
+    auto file = haveDebugFileUncached(buildId, true);
+
+    files[buildId] = file;
+
+    return file;
 }
 
 static int dwarffs_getattr(const char * path_, struct stat * stbuf)
@@ -241,6 +348,10 @@ static int dwarffs_read(const char * path_, char * buf, size_t size, off_t offse
 
 static void mainWrapped(int argc, char * * argv)
 {
+    verbosity = lvlDebug;
+
+    cacheDir = getCacheDir() + "/dwarffs/buildid";
+
     createDirs(cacheDir);
 
     fuse_args args = FUSE_ARGS_INIT(argc, argv);
