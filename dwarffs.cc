@@ -24,7 +24,12 @@ using namespace nix;
 typedef std::vector<std::string> PathSeq;
 
 PathSeq readmePath{"README"};
-static std::string readmeText = "Fnord";
+
+static std::string readmeText =
+R"str(This is a virtual file system that automatically fetches debug info
+files when requested via .build-id/<build-id>.debug. For more
+information, see https://github.com/edolstra/dwarffs.
+)str";
 
 PathSeq buildidPath{".build-id"};
 
