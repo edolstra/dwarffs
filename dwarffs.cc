@@ -26,7 +26,7 @@ typedef std::vector<std::string> PathSeq;
 PathSeq readmePath{"README"};
 static std::string readmeText = "Fnord";
 
-PathSeq buildidPath{"lib", "debug", ".build-id"};
+PathSeq buildidPath{".build-id"};
 
 std::regex debugFileRegex("^[0-9a-f]{38}\\.debug$");
 
@@ -151,8 +151,8 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
 
                 std::function<void(const Path &)> doPath;
 
-                std::regex debugFileRegex("^/lib/debug/\\.build-id/[0-9a-f]{2}/[0-9a-f]{38}\\.debug$");
-                std::string debugFilePrefix = "/lib/debug/.build-id/";
+                std::regex debugFileRegex("^/\\.build-id/[0-9a-f]{2}/[0-9a-f]{38}\\.debug$");
+                std::string debugFilePrefix = "/.build-id/";
 
                 doPath = [&](const Path & curPath) {
                     auto st = accessor->stat(curPath);
@@ -272,12 +272,6 @@ static int dwarffs_readdir(const char * path_, void * buf, fuse_fill_dir_t fille
 
     if (path == PathSeq{}) {
         filler(buf, "README", nullptr, 0);
-        filler(buf, "lib", nullptr, 0);
-    }
-    else if (path == PathSeq{"lib"}) {
-        filler(buf, "debug", nullptr, 0);
-    }
-    else if (path == PathSeq{"lib", "debug"}) {
         filler(buf, ".build-id", nullptr, 0);
     }
     else if (path == buildidPath) {
