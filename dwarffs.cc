@@ -9,6 +9,7 @@
 #include "compression.hh"
 #include "fs-accessor.hh"
 #include "nar-accessor.hh"
+#include "sync.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -44,12 +45,15 @@ Path cacheDir;
 
 struct DebugFile
 {
-    Path path;
-    size_t size;
+    const Path path;
+    const size_t size;
     AutoCloseFD fd;
+    DebugFile(const Path & path, size_t size)
+        : path(path), size(size)
+    { }
 };
 
-static std::map<std::string, std::shared_ptr<DebugFile>> files;
+static Sync<std::map<std::string, std::shared_ptr<DebugFile>>> files_;
 
 /* Return true iff q is inside p. */
 bool isInside(const PathSeq & q, const PathSeq & p)
@@ -99,10 +103,7 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
 
         if (st.st_size != 0) {
             debug("got cached '%s'", path);
-            auto file = std::make_shared<DebugFile>();
-            file->path = path;
-            file->size = st.st_size;
-            return file;
+            return std::make_shared<DebugFile>(path, st.st_size);
         } else if (st.st_mtime > time(0) - negativeTTL) {
             debug("got negative cached '%s'", path);
             return nullptr;
@@ -114,7 +115,7 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
     std::function<std::shared_ptr<DebugFile>(std::string)> tryUri;
 
     tryUri = [&](std::string uri) {
-        DownloadRequest req(uri);
+        DownloadRequest req(canonPath(uri));
         debug("downloading '%s'", uri);
 
         try {
@@ -132,6 +133,7 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
             if (std::string(*res.data, 0, 4) == "\x7f" "ELF") {
                 debug("got ELF debug info file for '%s' from '%s'", buildId, uri);
                 writeFile(path, *res.data);
+                return std::make_shared<DebugFile>(path, res.data->size());
             }
 
             /* If this is a JSON file, assume it's a redirect
@@ -185,15 +187,8 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
                 return haveDebugFileUncached(buildId, false);
             }
 
-            else {
-                printError("got unsupported data from '%s'", uri);
-                return std::shared_ptr<DebugFile>();
-            }
-
-            auto file = std::make_shared<DebugFile>();
-            file->path = path;
-            file->size = res.data->size();
-            return file;
+            printError("got unsupported data from '%s'", uri);
+            return std::shared_ptr<DebugFile>();
 
         } catch (DownloadError & e) {
             if (e.error != Downloader::NotFound)
@@ -219,15 +214,23 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
 
 std::shared_ptr<DebugFile> haveDebugFile(const std::string & buildId)
 {
-    auto i = files.find(buildId);
+    {
+        auto files(files_.lock());
+        auto i = files->find(buildId);
 
-    if (i != files.end())
-        // FIXME: respect TTL
-        return i->second;
+        if (i != files->end())
+            // FIXME: respect TTL
+            return i->second;
+    }
 
     auto file = haveDebugFileUncached(buildId, true);
 
-    files[buildId] = file;
+    {
+        auto files(files_.lock());
+        auto i = files->find(buildId);
+        if (i != files->end()) return i->second;
+        (*files)[buildId] = file;
+    }
 
     return file;
 }
