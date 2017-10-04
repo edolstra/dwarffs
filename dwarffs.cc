@@ -47,7 +47,7 @@ struct DebugFile
 {
     const Path path;
     const size_t size;
-    AutoCloseFD fd;
+    Sync<AutoCloseFD> fd;
     DebugFile(const Path & path, size_t size)
         : path(path), size(size)
     { }
@@ -398,15 +398,15 @@ static int dwarffs_read(const char * path_, char * buf, size_t size, off_t offse
 
         else if (isDebugFile(path) && (file = haveDebugFile(toBuildId(path)))) {
 
-            if (file->fd.get() == -1) {
-                file->fd = open(file->path.c_str(), O_RDONLY);
-                if (file->fd.get() == -1) return -EIO;
+            auto fd(file->fd.lock());
+
+            if (fd->get() == -1) {
+                debug("opening '%s'", file->path);
+                *fd = open(file->path.c_str(), O_RDONLY);
+                if (fd->get() == -1) return -EIO;
             }
 
-            if (lseek(file->fd.get(), offset, SEEK_SET) == -1)
-                return -EIO;
-
-            return read(file->fd.get(), buf, size);
+            return pread(fd->get(), buf, size, offset);
         }
 
         else
