@@ -93,6 +93,51 @@ std::string toBuildId(const PathSeq & path)
     return path[buildidPath.size()] + std::string(path[buildidPath.size() + 1], 0, 38);
 }
 
+std::string canonUri(const std::string & uri)
+{
+    auto i2 = uri.find("://");
+    if (i2 == std::string::npos)
+        throw Error("'%s' is not a URI", uri);
+
+    i2 += 3;
+    string s(uri, 0, i2);
+
+    string::const_iterator i = uri.begin() + i2, end = uri.end();
+    string temp;
+
+    bool first = true;
+
+    while (1) {
+
+        /* Skip slashes. */
+        while (i != end && *i == '/') i++;
+        if (i == end) break;
+
+        /* Ignore `.'. */
+        if (*i == '.' && (i + 1 == end || i[1] == '/'))
+            i++;
+
+        /* If `..', delete the last component. */
+        else if (*i == '.' && i + 1 < end && i[1] == '.' &&
+            (i + 2 == end || i[2] == '/'))
+        {
+            if (!s.empty()) s.erase(s.rfind('/'));
+            i += 2;
+        }
+
+        /* Normal component; copy it. */
+        else {
+            if (!first) s += '/';
+            first = false;
+            while (i != end && *i != '/') s += *i++;
+        }
+    }
+
+    printError("CANON %s -> %s", uri, s);
+
+    return s;
+}
+
 std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bool download)
 {
     auto path = cacheDir + "/" + buildId;
@@ -115,8 +160,7 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
     std::function<std::shared_ptr<DebugFile>(std::string)> tryUri;
 
     tryUri = [&](std::string uri) {
-        DownloadRequest req(canonPath(uri));
-        debug("downloading '%s'", uri);
+        DownloadRequest req(canonUri(uri));
 
         try {
 
