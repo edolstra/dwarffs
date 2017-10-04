@@ -237,37 +237,44 @@ std::shared_ptr<DebugFile> haveDebugFile(const std::string & buildId)
 
 static int dwarffs_getattr(const char * path_, struct stat * stbuf)
 {
-    int res = 0;
+    try {
 
-    memset(stbuf, 0, sizeof(struct stat));
+        int res = 0;
 
-    auto path = tokenizeString<PathSeq>(path_, "/");
+        memset(stbuf, 0, sizeof(struct stat));
 
-    if (isInside(buildidPath, path)
-        || (isInsideBuildid(path) && path.size() == buildidPath.size() + 1))
-    {
-        stbuf->st_mode = S_IFDIR | 0755;
-        stbuf->st_nlink = 2;
-    }
-    else if (isDebugFile(path)) {
-        auto buildId = toBuildId(path);
-        auto file = haveDebugFile(buildId);
-        if (file) {
-            stbuf->st_mode = S_IFREG | 0555;
+        auto path = tokenizeString<PathSeq>(path_, "/");
+
+        if (isInside(buildidPath, path)
+            || (isInsideBuildid(path) && path.size() == buildidPath.size() + 1))
+        {
+            stbuf->st_mode = S_IFDIR | 0755;
+            stbuf->st_nlink = 2;
+        }
+        else if (isDebugFile(path)) {
+            auto buildId = toBuildId(path);
+            auto file = haveDebugFile(buildId);
+            if (file) {
+                stbuf->st_mode = S_IFREG | 0555;
+                stbuf->st_nlink = 1;
+                stbuf->st_size = file->size;
+            } else
+                res = -ENOENT;
+        }
+        else if (path == readmePath) {
+            stbuf->st_mode = S_IFREG | 0444;
             stbuf->st_nlink = 1;
-            stbuf->st_size = file->size;
-        } else
+            stbuf->st_size = readmeText.size();
+        }
+        else
             res = -ENOENT;
-    }
-    else if (path == readmePath) {
-        stbuf->st_mode = S_IFREG | 0444;
-        stbuf->st_nlink = 1;
-        stbuf->st_size = readmeText.size();
-    }
-    else
-        res = -ENOENT;
 
-    return res;
+        return res;
+
+    } catch (std::exception & e) {
+        ignoreException();
+        return -EIO;
+    }
 }
 
 static int dwarffs_readdir(const char * path_, void * buf, fuse_fill_dir_t filler,
@@ -300,52 +307,65 @@ static int dwarffs_readdir(const char * path_, void * buf, fuse_fill_dir_t fille
 
 static int dwarffs_open(const char * path_, struct fuse_file_info * fi)
 {
-    auto path = tokenizeString<PathSeq>(path_, "/");
+    try {
 
-    if (path != readmePath
-        && !(isDebugFile(path) && haveDebugFile(toBuildId(path))))
-        return -ENOENT;
+        auto path = tokenizeString<PathSeq>(path_, "/");
 
-    if ((fi->flags & 3) != O_RDONLY)
-        return -EACCES;
+        if (path != readmePath
+            && !(isDebugFile(path) && haveDebugFile(toBuildId(path))))
+            return -ENOENT;
 
-    return 0;
+        if ((fi->flags & 3) != O_RDONLY)
+            return -EACCES;
+
+        return 0;
+
+    } catch (std::exception & e) {
+        ignoreException();
+        return -EIO;
+    }
 }
 
 static int dwarffs_read(const char * path_, char * buf, size_t size, off_t offset,
     struct fuse_file_info * fi)
 {
-    auto path = tokenizeString<PathSeq>(path_, "/");
+    try {
 
-    std::shared_ptr<DebugFile> file;
+        auto path = tokenizeString<PathSeq>(path_, "/");
 
-    if (path == readmePath) {
-        auto len = readmeText.size();
-        if (offset < len) {
-            if (offset + size > len)
-                size = len - offset;
-            memcpy(buf, readmeText.data() + offset, size);
-            return size;
-        } else
-            return 0;
-    }
+        std::shared_ptr<DebugFile> file;
 
-    else if (isDebugFile(path) && (file = haveDebugFile(toBuildId(path)))) {
-
-        if (file->fd.get() == -1) {
-            file->fd = open(file->path.c_str(), O_RDONLY);
-            if (file->fd.get() == -1) return -EIO;
+        if (path == readmePath) {
+            auto len = readmeText.size();
+            if (offset < len) {
+                if (offset + size > len)
+                    size = len - offset;
+                memcpy(buf, readmeText.data() + offset, size);
+                return size;
+            } else
+                return 0;
         }
 
-        if (lseek(file->fd.get(), offset, SEEK_SET) == -1)
-            return -EIO;
+        else if (isDebugFile(path) && (file = haveDebugFile(toBuildId(path)))) {
 
-        return read(file->fd.get(), buf, size);
+            if (file->fd.get() == -1) {
+                file->fd = open(file->path.c_str(), O_RDONLY);
+                if (file->fd.get() == -1) return -EIO;
+            }
+
+            if (lseek(file->fd.get(), offset, SEEK_SET) == -1)
+                return -EIO;
+
+            return read(file->fd.get(), buf, size);
+        }
+
+        else
+            return -ENOENT;
+
+    } catch (std::exception & e) {
+        ignoreException();
+        return -EIO;
     }
-
-    else
-        return -ENOENT;
-
 }
 
 static void mainWrapped(int argc, char * * argv)
