@@ -169,13 +169,14 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
 
             /* Decompress .xz files. */
             if (std::string(*res.data, 0, 5) == "\xfd" "7zXZ") {
+                debug("'%s' return xz data", uri);
                 res.data = decompress("xz", *res.data);
             }
 
             /* If this is an ELF file, assume it's the raw debug info
                file. */
             if (std::string(*res.data, 0, 4) == "\x7f" "ELF") {
-                debug("got ELF debug info file for '%s' from '%s'", buildId, uri);
+                debug("'%s' returned ELF debug info file for '%s'", uri, buildId);
                 writeFile(path, *res.data);
                 return std::make_shared<DebugFile>(path, res.data->size());
             }
@@ -185,6 +186,8 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
                the NAR file containing the debug info files for a
                particular store path. */
             else if (std::string(*res.data, 0, 1) == "{") {
+                debug("'%s' returned JSON redirection", uri);
+
                 auto json = nlohmann::json::parse(*res.data);
 
                 // FIXME
@@ -197,15 +200,18 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
                not just the one we need right now. After all, disk
                space is cheap but latency isn't. */
             else if (hasPrefix(*res.data, std::string("\x0d\x00\x00\x00\x00\x00\x00\x00", 8) + narVersionMagic1)) {
+                debug("'%s' returned a NAR", uri);
 
                 auto accessor = makeNarAccessor(make_ref<std::string>(*res.data));
 
                 std::function<void(const Path &)> doPath;
 
-                std::regex debugFileRegex("^/\\.build-id/[0-9a-f]{2}/[0-9a-f]{38}\\.debug$");
-                std::string debugFilePrefix = "/.build-id/";
+                std::regex debugFileRegex("^/lib/debug/\\.build-id/[0-9a-f]{2}/[0-9a-f]{38}\\.debug$");
+                std::string debugFilePrefix = "/lib/debug/.build-id/";
 
                 doPath = [&](const Path & curPath) {
+                    debug("at NAR path '%s'", curPath);
+
                     auto st = accessor->stat(curPath);
 
                     if (st.type == FSAccessor::Type::tDirectory) {
