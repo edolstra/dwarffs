@@ -8,4 +8,6 @@ Where=/run/dwarffs
 # Would like to use fuse.dwarffs, but that doesn't work on NixOS at
 # the moment: https://github.com/NixOS/nixpkgs/issues/21748.
 Type=fuse.dwarffs
-Options=ro,allow_other
+Options=ro,allow_other,cache=/var/cache/dwarffs
+StandardOutput=journal
+StandardError=journal

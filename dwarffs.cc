@@ -387,7 +387,7 @@ static int dwarffs_read(const char * path_, char * buf, size_t size, off_t offse
 
         if (path == readmePath) {
             auto len = readmeText.size();
-            if (offset < len) {
+            if (offset < (off_t) len) {
                 if (offset + size > len)
                     size = len - offset;
                 memcpy(buf, readmeText.data() + offset, size);
@@ -418,13 +418,21 @@ static int dwarffs_read(const char * path_, char * buf, size_t size, off_t offse
     }
 }
 
+struct dwarffs_param
+{
+    char * cache = nullptr;
+};
+
+#define DWARFFS_OPT(t, p) { t, offsetof(struct dwarffs_param, p), 1 }
+
+static const struct fuse_opt dwarffs_opts[] = {
+        DWARFFS_OPT("cache=%s",         cache),
+        FUSE_OPT_END
+};
+
 static void mainWrapped(int argc, char * * argv)
 {
     verbosity = lvlDebug;
-
-    cacheDir = getCacheDir() + "/dwarffs/buildid";
-
-    createDirs(cacheDir);
 
     /* Handle being invoked by mount with a "fuse.dwarffs" mount
        type. */
@@ -440,7 +448,12 @@ static void mainWrapped(int argc, char * * argv)
         argv = fakeArgv2.data();
     }
 
+    dwarffs_param param;
+
     fuse_args args = FUSE_ARGS_INIT(argc, argv);
+
+    if (fuse_opt_parse(&args, &param, dwarffs_opts, nullptr))
+        throw Error("failed to parse options");
 
     fuse_operations oper;
     memset(&oper, 0, sizeof(oper));
@@ -448,6 +461,10 @@ static void mainWrapped(int argc, char * * argv)
     oper.readdir = dwarffs_readdir;
     oper.open = dwarffs_open;
     oper.read = dwarffs_read;
+
+    cacheDir = param.cache ? param.cache : getCacheDir() + "/dwarffs";
+
+    createDirs(cacheDir);
 
     fuse_main(args.argc, args.argv, &oper, nullptr);
 }
