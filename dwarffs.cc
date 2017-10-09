@@ -14,6 +14,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <pwd.h>
+#include <grp.h>
 
 #define FUSE_USE_VERSION 30
 #include <fuse.h>
@@ -54,6 +56,9 @@ struct DebugFile
 };
 
 static Sync<std::map<std::string, std::shared_ptr<DebugFile>>> files_;
+
+static uid_t uid = (uid_t) -1;
+static gid_t gid = (gid_t) -1;
 
 /* Return true iff q is inside p. */
 bool isInside(const PathSeq & q, const PathSeq & p)
@@ -292,6 +297,8 @@ static int dwarffs_getattr(const char * path_, struct stat * stbuf)
         int res = 0;
 
         memset(stbuf, 0, sizeof(struct stat));
+        stbuf->st_uid = uid;
+        stbuf->st_gid = gid;
 
         auto path = tokenizeString<PathSeq>(path_, "/");
 
@@ -421,12 +428,16 @@ static int dwarffs_read(const char * path_, char * buf, size_t size, off_t offse
 struct dwarffs_param
 {
     char * cache = nullptr;
+    char * uid = nullptr;
+    char * gid = nullptr;
 };
 
 #define DWARFFS_OPT(t, p) { t, offsetof(struct dwarffs_param, p), 1 }
 
 static const struct fuse_opt dwarffs_opts[] = {
-        DWARFFS_OPT("cache=%s",         cache),
+        DWARFFS_OPT("cache=%s", cache),
+        DWARFFS_OPT("uid=%s", uid),
+        DWARFFS_OPT("gid=%s", gid),
         FUSE_OPT_END
 };
 
@@ -448,11 +459,11 @@ static void mainWrapped(int argc, char * * argv)
         argv = fakeArgv2.data();
     }
 
-    dwarffs_param param;
+    dwarffs_param params;
 
     fuse_args args = FUSE_ARGS_INIT(argc, argv);
 
-    if (fuse_opt_parse(&args, &param, dwarffs_opts, nullptr))
+    if (fuse_opt_parse(&args, &params, dwarffs_opts, nullptr))
         throw Error("failed to parse options");
 
     fuse_operations oper;
@@ -462,11 +473,55 @@ static void mainWrapped(int argc, char * * argv)
     oper.open = dwarffs_open;
     oper.read = dwarffs_read;
 
-    cacheDir = param.cache ? param.cache : getCacheDir() + "/dwarffs";
+    cacheDir = params.cache ? params.cache : getCacheDir() + "/dwarffs";
 
     createDirs(cacheDir);
 
-    fuse_main(args.argc, args.argv, &oper, nullptr);
+    if (params.uid) {
+        if (!params.gid) throw Error("uid requires gid");
+
+        if (!string2Int(params.uid, uid)) {
+            char buf[16384];
+            struct passwd pwbuf;
+            struct passwd * pw;
+            if (getpwnam_r(params.uid, &pwbuf, buf, sizeof(buf), &pw) != 0 || !pw)
+                throw Error("cannot look up user '%s'", params.uid);
+            uid = pw->pw_uid;
+        }
+
+
+        if (!string2Int(params.gid, gid)) {
+            char buf2[16384];
+            struct group grbuf;
+            struct group * gr;
+            if (getgrnam_r(params.gid, &grbuf, buf2, sizeof(buf2), &gr) != 0 || !gr)
+                throw Error("cannot look up group '%s'", params.gid);
+            gid = gr->gr_gid;
+        }
+
+        if (chown(cacheDir.c_str(), uid, gid))
+            throw SysError("setting ownership of '%s'", cacheDir);
+    }
+
+    struct fuse * fuse;
+    char * mountpoint;
+    int multithreaded;
+
+    fuse = fuse_setup(args.argc, args.argv, &oper, sizeof(oper), &mountpoint,
+        &multithreaded, nullptr);
+    if (!fuse) throw Error("FUSE setup failed");
+
+    if (uid != (uid_t) -1) {
+        if (setgid(gid) || setuid(uid))
+            throw SysError("dropping privileges");
+    }
+
+    if (multithreaded)
+        fuse_loop_mt(fuse);
+    else
+        fuse_loop(fuse);
+
+    fuse_teardown(fuse, mountpoint);
 }
 
 int main(int argc, char * * argv)

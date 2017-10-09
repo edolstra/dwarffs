@@ -16,6 +16,14 @@ in
 
   environment.variables.NIX_DEBUG_INFO_DIRS = [ "/run/dwarffs" ];
 
-  systemd.tmpfiles.rules = [ "d /var/cache/dwarffs 0755 root root 7d" ];
+  systemd.tmpfiles.rules = [ "d /var/cache/dwarffs 0755 dwarffs dwarffs 7d" ];
+
+  users.users.dwarffs =
+    { description = "Debug symbols file system daemon user";
+      group = "dwarffs";
+      isSystemUser = true;
+    };
+
+  users.groups.dwarffs = {};
 
 }
