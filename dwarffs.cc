@@ -138,8 +138,6 @@ std::string canonUri(const std::string & uri)
         }
     }
 
-    printError("CANON %s -> %s", uri, s);
-
     return s;
 }
 
@@ -215,8 +213,6 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
                 std::string debugFilePrefix = "/lib/debug/.build-id/";
 
                 doPath = [&](const Path & curPath) {
-                    debug("at NAR path '%s'", curPath);
-
                     auto st = accessor->stat(curPath);
 
                     if (st.type == FSAccessor::Type::tDirectory) {
@@ -229,7 +225,7 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
                             std::string(curPath, debugFilePrefix.size(), 2)  +
                             std::string(curPath, debugFilePrefix.size() + 3, 38);
 
-                        debug("got ELF debug info file for '%s' from NAR at '%s'", buildId2, uri);
+                        debug("got ELF debug info file for %s from NAR at '%s'", buildId2, uri);
 
                         writeFile(cacheDir + "/" + buildId2, accessor->readFile(curPath));
                     }
@@ -503,6 +499,12 @@ static void mainWrapped(int argc, char * * argv)
             throw SysError("setting ownership of '%s'", cacheDir);
     }
 
+    /* Hack: when running under systemd, keep logging to the original
+       stderr (i.e. the journal) after fuse daemonizes. */
+    bool inSystemd = getEnv("IN_SYSTEMD") == "1";
+
+    int stderrFd = inSystemd ? dup(STDERR_FILENO) : -1;
+
     struct fuse * fuse;
     char * mountpoint;
     int multithreaded;
@@ -515,6 +517,9 @@ static void mainWrapped(int argc, char * * argv)
         if (setgid(gid) || setuid(uid))
             throw SysError("dropping privileges");
     }
+
+    if (stderrFd != -1)
+        dup2(stderrFd, STDERR_FILENO);
 
     if (multithreaded)
         fuse_loop_mt(fuse);

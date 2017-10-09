@@ -11,3 +11,4 @@ Type=fuse.dwarffs
 Options=ro,allow_other,cache=/var/cache/dwarffs,uid=dwarffs,gid=dwarffs
 StandardOutput=journal
 StandardError=journal
+Environment="IN_SYSTEMD=1"
