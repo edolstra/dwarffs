@@ -16,4 +16,6 @@ in
 
   environment.variables.NIX_DEBUG_INFO_DIRS = [ "/run/dwarffs" ];
 
+  systemd.tmpfiles.rules = [ "d /var/cache/dwarffs 0755 root root 7d" ];
+
 }
