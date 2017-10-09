@@ -10,7 +10,9 @@ embedded in ELF executables and libraries.
 
 To enable `dwarffs`, add the following to your `configuration.nix`:
 
-> imports = [ (builtins.fetchgit https://github.com/edolstra/dwarffs + "/module.nix") ];
+```
+imports = [ (builtins.fetchgit https://github.com/edolstra/dwarffs + "/module.nix") ];
+```
 
 This creates an automount unit on `/run/dwarffs`. It also sets the
 environment variable `NIX_DEBUG_INFO_DIRS` to `/run/dwarffs`. The
