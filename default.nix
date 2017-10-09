@@ -1,4 +1,6 @@
-with import <nixpkgs> {};
+{ pkgs ? import <nixpkgs> {} }:
+
+with pkgs;
 
 stdenv.mkDerivation {
   name = "dwarffs-0.1";
@@ -11,7 +13,12 @@ stdenv.mkDerivation {
 
   installPhase =
     ''
-      mkdir -p $out/bin
+      mkdir -p $out/bin $out/lib/systemd/system
+
       cp dwarffs $out/bin/
+      ln -s dwarffs $out/bin/mount.fuse.dwarffs
+
+      cp ${./run-dwarffs.mount} $out/lib/systemd/system/run-dwarffs.mount
+      cp ${./run-dwarffs.automount} $out/lib/systemd/system/run-dwarffs.automount
     '';
 }

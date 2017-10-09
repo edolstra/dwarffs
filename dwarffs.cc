@@ -426,6 +426,20 @@ static void mainWrapped(int argc, char * * argv)
 
     createDirs(cacheDir);
 
+    /* Handle being invoked by mount with a "fuse.dwarffs" mount
+       type. */
+    Strings fakeArgv;
+    std::vector<char *> fakeArgv2;
+
+    if (std::string(argv[0]).find("mount.fuse.dwarffs") != std::string::npos) {
+        assert(argc == 5);
+        assert(std::string(argv[3]) == "-o");
+        fakeArgv = { argv[0], argv[2], "-o", argv[4] };
+        fakeArgv2 = stringsToCharPtrs(fakeArgv);
+        argc = fakeArgv.size();
+        argv = fakeArgv2.data();
+    }
+
     fuse_args args = FUSE_ARGS_INIT(argc, argv);
 
     fuse_operations oper;
