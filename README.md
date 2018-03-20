@@ -11,7 +11,7 @@ embedded in ELF executables and libraries.
 To enable `dwarffs`, add the following to your `configuration.nix`:
 
 ```
-imports = [ (builtins.fetchgit https://github.com/edolstra/dwarffs + "/module.nix") ];
+imports = [ (builtins.fetchGit https://github.com/edolstra/dwarffs + "/module.nix") ];
 ```
 
 This creates an automount unit on `/run/dwarffs`. It also sets the
