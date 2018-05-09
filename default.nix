@@ -2,6 +2,8 @@
 
 with pkgs;
 
+let nix = pkgs.nixStable2 or pkgs.nix; in
+
 stdenv.mkDerivation {
   name = "dwarffs-0.1";
 
