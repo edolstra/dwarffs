@@ -1,5 +1,7 @@
 { pkgs ? import <nixpkgs> {} }:
-
+let
+  nix = pkgs.nixStable2 or pkgs.nix;
+in
 with pkgs;
 
 stdenv.mkDerivation {
