@@ -7,7 +7,7 @@ let nix = pkgs.nixStable2 or pkgs.nix; in
 stdenv.mkDerivation {
   name = "dwarffs-0.1";
 
-  buildInputs = [ fuse nix nlohmann_json ];
+  buildInputs = [ fuse nix nlohmann_json boost ];
 
   NIX_CFLAGS_COMPILE = "-I ${nix.dev}/include/nix -include ${nix.dev}/include/nix/config.h -D_FILE_OFFSET_BITS=64";
 
