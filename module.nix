@@ -1,8 +1,10 @@
+flakes:
+
 { config, lib, pkgs, ... }:
 
 let
 
-  dwarffs = import ./. { inherit pkgs; };
+  dwarffs = flakes.dwarffs.packages.dwarffs;
 
 in
 
