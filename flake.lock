@@ -1,0 +1,8 @@
+{
+    "version": 1,
+    "flakes": {
+        "nixpkgs": {
+            "uri": "github:edolstra/nixpkgs/80f01952b09c0f96909dd263b44477022dff1ada"
+        }
+    }
+}
