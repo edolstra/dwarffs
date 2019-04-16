@@ -5,7 +5,7 @@
 
   requires = [ flake:nixpkgs ];
 
-  provides = flakes: {
+  provides = flakes: rec {
     packages.dwarffs =
       with flakes.nixpkgs.provides.packages;
       with flakes.nixpkgs.provides.builders;
@@ -33,5 +33,7 @@
       };
 
     nixosModules.dwarffs = import ./module.nix flakes;
+
+    defaultPackage = packages.dwarffs;
   };
 }
