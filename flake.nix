@@ -1,15 +1,17 @@
 {
   name = "dwarffs";
 
+  epoch = 2019;
+
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
-  requires = [ flake:nixpkgs ];
+  requires = [ "nixpkgs" ];
 
-  provides = flakes: rec {
+  provides = deps: rec {
     packages.dwarffs =
-      with flakes.nixpkgs.provides.packages;
-      with flakes.nixpkgs.provides.builders;
-      with flakes.nixpkgs.provides.lib;
+      with deps.nixpkgs.provides.packages;
+      with deps.nixpkgs.provides.builders;
+      with deps.nixpkgs.provides.lib;
 
       stdenv.mkDerivation {
         name = "dwarffs-0.1";
@@ -32,7 +34,7 @@
           '';
       };
 
-    nixosModules.dwarffs = import ./module.nix flakes;
+    nixosModules.dwarffs = import ./module.nix deps;
 
     defaultPackage = packages.dwarffs;
   };
