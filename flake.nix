@@ -37,5 +37,7 @@
     nixosModules.dwarffs = import ./module.nix deps;
 
     defaultPackage = packages.dwarffs;
+
+    hydraJobs.build.x86_64-linux = packages.dwarffs;
   };
 }
