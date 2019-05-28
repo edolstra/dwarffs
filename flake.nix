@@ -14,7 +14,7 @@
       with deps.nixpkgs.provides.lib;
 
       stdenv.mkDerivation {
-        name = "dwarffs-0.1";
+        name = "dwarffs-0.1.${substring 0 8 deps.self.lastModified}";
 
         buildInputs = [ fuse nix nlohmann_json boost ];
 
