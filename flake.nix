@@ -5,16 +5,16 @@
 
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
-  requires = [ "nixpkgs" ];
+  inputs = [ "nixpkgs" ];
 
-  provides = deps: rec {
+  outputs = inputs: rec {
     packages.dwarffs =
-      with deps.nixpkgs.provides.packages;
-      with deps.nixpkgs.provides.builders;
-      with deps.nixpkgs.provides.lib;
+      with inputs.nixpkgs.outputs.packages;
+      with inputs.nixpkgs.outputs.builders;
+      with inputs.nixpkgs.outputs.lib;
 
       stdenv.mkDerivation {
-        name = "dwarffs-0.1.${substring 0 8 deps.self.lastModified}";
+        name = "dwarffs-0.1.${substring 0 8 inputs.self.lastModified}";
 
         buildInputs = [ fuse nix nlohmann_json boost ];
 
@@ -34,10 +34,10 @@
           '';
       };
 
-    nixosModules.dwarffs = import ./module.nix deps;
+    nixosModules.dwarffs = import ./module.nix inputs;
 
     defaultPackage = packages.dwarffs;
 
-    hydraJobs.build.x86_64-linux = packages.dwarffs;
+    checks.build = packages.dwarffs;
   };
 }
