@@ -1,7 +1,7 @@
 {
   name = "dwarffs";
 
-  epoch = 2019;
+  epoch = 201906;
 
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
