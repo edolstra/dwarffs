@@ -9,9 +9,9 @@
 
   outputs = inputs: rec {
     packages.dwarffs =
-      with inputs.nixpkgs.outputs.packages;
-      with inputs.nixpkgs.outputs.builders;
-      with inputs.nixpkgs.outputs.lib;
+      with inputs.nixpkgs.packages;
+      with inputs.nixpkgs.builders;
+      with inputs.nixpkgs.lib;
 
       stdenv.mkDerivation {
         name = "dwarffs-0.1.${substring 0 8 inputs.self.lastModified}";
