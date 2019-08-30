@@ -1,26 +1,22 @@
 {
-  name = "dwarffs";
-
-  edition = 201906;
+  edition = 201909;
 
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
-  inputs = [ "nixpkgs" ];
-
-  outputs = inputs: rec {
+  outputs = { self, nixpkgs }: rec {
     packages.dwarffs =
-      with inputs.nixpkgs.packages;
-      with inputs.nixpkgs.builders;
-      with inputs.nixpkgs.lib;
+      with nixpkgs.packages;
+      with nixpkgs.builders;
+      with nixpkgs.lib;
 
       stdenv.mkDerivation {
-        name = "dwarffs-0.1.${substring 0 8 inputs.self.lastModified}";
+        name = "dwarffs-0.1.${if self ? lastModified then substring 0 8 self.lastModified else "dirty"}";
 
         buildInputs = [ fuse nix nlohmann_json boost ];
 
         NIX_CFLAGS_COMPILE = "-I ${nix.dev}/include/nix -include ${nix.dev}/include/nix/config.h -D_FILE_OFFSET_BITS=64";
 
-        src = inputs.self;
+        src = self;
 
         installPhase =
           ''
