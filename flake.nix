@@ -4,13 +4,11 @@
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
   outputs = { self, nixpkgs }: rec {
-    packages.dwarffs =
-      with nixpkgs.packages;
-      with nixpkgs.builders;
-      with nixpkgs.lib;
 
-      stdenv.mkDerivation {
-        name = "dwarffs-0.1.${if self ? lastModified then substring 0 8 self.lastModified else "dirty"}";
+    overlay = final: prev: {
+
+      dwarffs = with final; stdenv.mkDerivation {
+        name = "dwarffs-0.1.${if self ? lastModified then lib.substring 0 8 self.lastModified else "dirty"}";
 
         buildInputs = [ fuse nix nlohmann_json boost ];
 
@@ -30,15 +28,21 @@
           '';
       };
 
-    defaultPackage = packages.dwarffs;
+    };
 
-    checks.build = packages.dwarffs;
+    defaultPackage = (import nixpkgs {
+      system = "x86_64-linux";
+      overlays = [ self.overlay ];
+    }).dwarffs;
 
     nixosModules.dwarffs =
+      { pkgs, ... }:
       {
-        systemd.packages = [ packages.dwarffs ];
+        nixpkgs.overlays = [ self.overlay ];
 
-        system.fsPackages = [ packages.dwarffs ];
+        systemd.packages = [ pkgs.dwarffs ];
+
+        system.fsPackages = [ pkgs.dwarffs ];
 
         systemd.units."run-dwarffs.automount".wantedBy = [ "multi-user.target" ];
 
