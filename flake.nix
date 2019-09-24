@@ -35,6 +35,8 @@
       overlays = [ self.overlay ];
     }).dwarffs;
 
+    checks.build = defaultPackage;
+
     nixosModules.dwarffs =
       { pkgs, ... }:
       {
