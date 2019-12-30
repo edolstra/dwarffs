@@ -3,6 +3,8 @@
 
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
+  inputs.nixpkgs.url = "nixpkgs/release-19.09";
+
   outputs = { self, nixpkgs }:
 
     let
