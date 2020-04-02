@@ -3,7 +3,7 @@
 
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
-  inputs.nixpkgs.url = "nixpkgs/release-19.09";
+  inputs.nixpkgs.url = "nixpkgs/release-20.03";
 
   outputs = { self, nixpkgs }:
 
@@ -17,7 +17,7 @@
       overlay = final: prev: {
 
         dwarffs = with final; stdenv.mkDerivation {
-          name = "dwarffs-0.1.${if self ? lastModified then lib.substring 0 8 self.lastModified else "dirty"}";
+          name = "dwarffs-0.1.${if self ? lastModified then lib.substring 0 8 (self.lastModifiedDate or self.lastModified) else "dirty"}";
 
           buildInputs = [ fuse nix nlohmann_json boost ];
 
