@@ -4,7 +4,7 @@
 
 #include "logging.hh"
 #include "shared.hh"
-#include "download.hh"
+#include "filetransfer.hh"
 #include "archive.hh"
 #include "compression.hh"
 #include "fs-accessor.hh"
@@ -163,11 +163,11 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
     std::function<std::shared_ptr<DebugFile>(std::string)> tryUri;
 
     tryUri = [&](std::string uri) {
-        DownloadRequest req(canonUri(uri));
+        FileTransferRequest req(canonUri(uri));
 
         try {
 
-            auto res = getDownloader()->download(req);
+            auto res = getFileTransfer()->download(req);
             assert(res.data);
 
             /* Decompress .xz files. */
@@ -241,8 +241,8 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
             printError("got unsupported data from '%s'", uri);
             return std::shared_ptr<DebugFile>();
 
-        } catch (DownloadError & e) {
-            if (e.error != Downloader::NotFound)
+        } catch (FileTransferError & e) {
+            if (e.error != FileTransfer::NotFound)
                 printError("while downloading '%s': %s", uri, e.what());
         }
 

@@ -3,9 +3,9 @@
 
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
-  inputs.nixpkgs.url = "nixpkgs/release-20.03";
+  inputs.nixpkgs.follows = "nix/nixpkgs";
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nix, nixpkgs }:
 
     let
       supportedSystems = [ "x86_64-linux" "i686-linux" "aarch64-linux" ];
@@ -16,7 +16,7 @@
 
       overlay = final: prev: {
 
-        dwarffs = with final; stdenv.mkDerivation {
+        dwarffs = with final; let nix = final.nix; in stdenv.mkDerivation {
           name = "dwarffs-0.1.${if self ? lastModified then lib.substring 0 8 (self.lastModifiedDate or self.lastModified) else "dirty"}";
 
           buildInputs = [ fuse nix nlohmann_json boost ];
@@ -41,7 +41,7 @@
 
       defaultPackage = forAllSystems (system: (import nixpkgs {
         inherit system;
-        overlays = [ self.overlay ];
+        overlays = [ self.overlay nix.overlay ];
       }).dwarffs);
 
       checks = forAllSystems (system: {
