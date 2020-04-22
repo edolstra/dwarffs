@@ -47,6 +47,29 @@
 
       checks = forAllSystems (system: {
         build = self.defaultPackage.${system};
+
+        test =
+          with import (nixpkgs + "/nixos/lib/testing-python.nix") {
+            inherit system;
+          };
+
+          makeTest {
+            nodes = {
+              client = { ... }: {
+                imports = [ self.nixosModules.dwarffs ];
+                nixpkgs.overlays = [ nix.overlay ];
+              };
+            };
+
+            testScript =
+              ''
+                start_all()
+                client.wait_for_unit("multi-user.target")
+                client.succeed("dwarffs --version")
+                client.succeed("cat /run/dwarffs/README")
+                client.succeed("[ -e /run/dwarffs/.build-id/00 ]")
+              '';
+          };
       });
 
       nixosModules.dwarffs =
