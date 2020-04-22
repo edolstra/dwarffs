@@ -10,6 +10,7 @@
     let
       supportedSystems = [ "x86_64-linux" "i686-linux" "aarch64-linux" ];
       forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
+      version = "0.1.${if self ? lastModified then nixpkgs.lib.substring 0 8 (self.lastModifiedDate or self.lastModified) else "dirty"}";
     in
 
     {
@@ -17,11 +18,11 @@
       overlay = final: prev: {
 
         dwarffs = with final; let nix = final.nix; in stdenv.mkDerivation {
-          name = "dwarffs-0.1.${if self ? lastModified then lib.substring 0 8 (self.lastModifiedDate or self.lastModified) else "dirty"}";
+          name = "dwarffs-${version}";
 
           buildInputs = [ fuse nix nlohmann_json boost ];
 
-          NIX_CFLAGS_COMPILE = "-I ${nix.dev}/include/nix -include ${nix.dev}/include/nix/config.h -D_FILE_OFFSET_BITS=64";
+          NIX_CFLAGS_COMPILE = "-I ${nix.dev}/include/nix -include ${nix.dev}/include/nix/config.h -D_FILE_OFFSET_BITS=64 -DVERSION=\"${version}\"";
 
           src = self;
 

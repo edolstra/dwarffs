@@ -428,14 +428,36 @@ struct dwarffs_param
     char * gid = nullptr;
 };
 
+enum { KEY_HELP, KEY_VERSION };
+
 #define DWARFFS_OPT(t, p) { t, offsetof(struct dwarffs_param, p), 1 }
 
 static const struct fuse_opt dwarffs_opts[] = {
         DWARFFS_OPT("cache=%s", cache),
         DWARFFS_OPT("uid=%s", uid),
         DWARFFS_OPT("gid=%s", gid),
+        FUSE_OPT_KEY("--version", KEY_VERSION),
+        FUSE_OPT_KEY("--help", KEY_HELP),
         FUSE_OPT_END
 };
+
+static fuse_operations oper;
+
+static int dwarffs_opt_proc(void * data, const char * arg, int key, struct fuse_args * outargs)
+{
+     switch (key) {
+     case KEY_HELP:
+         fuse_opt_add_arg(outargs, "-h");
+         fuse_main(outargs->argc, outargs->argv, &oper, nullptr);
+         exit(0);
+     case KEY_VERSION:
+         printError("dwarffs version: %s", VERSION);
+         fuse_opt_add_arg(outargs, "--version");
+         fuse_main(outargs->argc, outargs->argv, &oper, nullptr);
+         exit(0);
+     }
+     return 1;
+}
 
 static void mainWrapped(int argc, char * * argv)
 {
@@ -459,10 +481,9 @@ static void mainWrapped(int argc, char * * argv)
 
     fuse_args args = FUSE_ARGS_INIT(argc, argv);
 
-    if (fuse_opt_parse(&args, &params, dwarffs_opts, nullptr))
+    if (fuse_opt_parse(&args, &params, dwarffs_opts, dwarffs_opt_proc))
         throw Error("failed to parse options");
 
-    fuse_operations oper;
     memset(&oper, 0, sizeof(oper));
     oper.getattr = dwarffs_getattr;
     oper.readdir = dwarffs_readdir;
