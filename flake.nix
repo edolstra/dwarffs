@@ -1,6 +1,4 @@
 {
-  edition = 201909;
-
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
   inputs.nixpkgs.follows = "nix/nixpkgs";
