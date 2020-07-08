@@ -8,7 +8,7 @@
     let
       supportedSystems = [ "x86_64-linux" "i686-linux" "aarch64-linux" ];
       forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
-      version = "0.1.${if self ? lastModified then nixpkgs.lib.substring 0 8 (self.lastModifiedDate or self.lastModified) else "dirty"}";
+      version = "0.1.${nixpkgs.lib.substring 0 8 self.lastModifiedDate}.${self.shortRev or "dirty"}";
     in
 
     {
