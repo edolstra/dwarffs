@@ -497,7 +497,9 @@ static void mainWrapped(int argc, char * * argv)
     if (params.uid) {
         if (!params.gid) throw Error("uid requires gid");
 
-        if (!string2Int(params.uid, uid)) {
+        if (auto n = string2Int<uid_t>(params.uid))
+            uid = *n;
+        else {
             char buf[16384];
             struct passwd pwbuf;
             struct passwd * pw;
@@ -506,8 +508,9 @@ static void mainWrapped(int argc, char * * argv)
             uid = pw->pw_uid;
         }
 
-
-        if (!string2Int(params.gid, gid)) {
+        if (auto n = string2Int<gid_t>(params.gid))
+            gid = *n;
+        else {
             char buf2[16384];
             struct group grbuf;
             struct group * gr;
