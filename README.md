@@ -8,10 +8,42 @@ embedded in ELF executables and libraries.
 
 ### NixOS
 
-To enable `dwarffs`, add the following to your `configuration.nix`:
+To enable `dwarffs`, add it to your NixOS configuration flake like
+this:
 
+```nix
+{
+  inputs.dwarffs.url = "github:edolstra/dwarffs";
+
+  outputs = { self, nixpkgs, dwarffs }: {
+    nixosConfigurations.my-machine = nixpkgs.lib.nixosSystem {
+      modules =
+        [ dwarffs.nixosModules.dwarffs
+          # ... other configuration ...
+        ];
+    };
+  };
+}
 ```
-imports = [ (builtins.fetchGit https://github.com/edolstra/dwarffs + "/module.nix") ];
+
+You may also need an unstable version of Nix, which can be obtained
+from the `nix` flake:
+
+```nix
+{
+  inputs.dwarffs.url = "github:edolstra/dwarffs";
+  inputs.nix.url = "github:NixOS/nix";
+
+  outputs = { self, nixpkgs, dwarffs, nix }: {
+    nixosConfigurations.my-machine = nixpkgs.lib.nixosSystem {
+      modules =
+        [ dwarffs.nixosModules.dwarffs
+          { nixpkgs.overlays = [ nix.overlay ]; }
+          # ... other configuration ...
+        ];
+    };
+  };
+}
 ```
 
 This creates an automount unit on `/run/dwarffs`. It also sets the
