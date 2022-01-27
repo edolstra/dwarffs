@@ -168,30 +168,29 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
         try {
 
             auto res = getFileTransfer()->download(req);
-            assert(res.data);
 
             /* Decompress .xz files. */
-            if (std::string(*res.data, 0, 5) == "\xfd" "7zXZ") {
+            if (std::string(res.data, 0, 5) == "\xfd" "7zXZ") {
                 debug("'%s' return xz data", uri);
-                res.data = decompress("xz", *res.data);
+                res.data = decompress("xz", std::move(res.data));
             }
 
             /* If this is an ELF file, assume it's the raw debug info
                file. */
-            if (std::string(*res.data, 0, 4) == "\x7f" "ELF") {
+            if (std::string(res.data, 0, 4) == "\x7f" "ELF") {
                 debug("'%s' returned ELF debug info file for '%s'", uri, buildId);
-                writeFile(path, *res.data);
-                return std::make_shared<DebugFile>(path, res.data->size());
+                writeFile(path, std::move(res.data));
+                return std::make_shared<DebugFile>(path, res.data.size());
             }
 
             /* If this is a JSON file, assume it's a redirect
                file. This is used in cache.nixos.org to redirect to
                the NAR file containing the debug info files for a
                particular store path. */
-            else if (std::string(*res.data, 0, 1) == "{") {
+            else if (std::string(res.data, 0, 1) == "{") {
                 debug("'%s' returned JSON redirection", uri);
 
-                auto json = nlohmann::json::parse(*res.data);
+                auto json = nlohmann::json::parse(std::move(res.data));
 
                 // FIXME
                 std::string archive = json["archive"];
@@ -202,10 +201,10 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
             /* If this is a NAR file, extract all debug info file,
                not just the one we need right now. After all, disk
                space is cheap but latency isn't. */
-            else if (hasPrefix(*res.data, std::string("\x0d\x00\x00\x00\x00\x00\x00\x00", 8) + narVersionMagic1)) {
+            else if (hasPrefix(res.data, std::string("\x0d\x00\x00\x00\x00\x00\x00\x00", 8) + narVersionMagic1)) {
                 debug("'%s' returned a NAR", uri);
 
-                auto accessor = makeNarAccessor(make_ref<std::string>(*res.data));
+                auto accessor = makeNarAccessor(std::move(res.data));
 
                 std::function<void(const Path &)> doPath;
 
