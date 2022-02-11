@@ -13,7 +13,7 @@
 
     {
 
-      overlay = final: prev: {
+      overlays.default = final: _: {
 
         dwarffs = with final; let nix = final.nix; in stdenv.mkDerivation {
           name = "dwarffs-${version}";
@@ -38,13 +38,15 @@
 
       };
 
-      defaultPackage = forAllSystems (system: (import nixpkgs {
-        inherit system;
-        overlays = [ self.overlay nix.overlay ];
-      }).dwarffs);
+      packages = forAllSystems (system: {
+        default = (import nixpkgs {
+          inherit system;
+          overlays = [ self.overlays.default nix.overlay ];
+        }).dwarffs;
+      });
 
       checks = forAllSystems (system: {
-        build = self.defaultPackage.${system};
+        build = self.packages.${system}.default;
 
         test =
           with import (nixpkgs + "/nixos/lib/testing-python.nix") {
@@ -54,7 +56,7 @@
           makeTest {
             nodes = {
               client = { ... }: {
-                imports = [ self.nixosModules.dwarffs ];
+                imports = [ self.nixosModules.default ];
                 nixpkgs.overlays = [ nix.overlay ];
               };
             };
@@ -70,10 +72,10 @@
           };
       });
 
-      nixosModules.dwarffs =
+      nixosModules.default =
         { pkgs, ... }:
         {
-          nixpkgs.overlays = [ self.overlay ];
+          nixpkgs.overlays = [ self.overlays.default ];
 
           systemd.packages = [ pkgs.dwarffs ];
 
