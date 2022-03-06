@@ -105,10 +105,10 @@ std::string canonUri(const std::string & uri)
         throw Error("'%s' is not a URI", uri);
 
     i2 += 3;
-    string s(uri, 0, i2);
+    std::string s(uri, 0, i2);
 
-    string::const_iterator i = uri.begin() + i2, end = uri.end();
-    string temp;
+    std::string::const_iterator i = uri.begin() + i2, end = uri.end();
+    std::string temp;
 
     bool first = true;
 
