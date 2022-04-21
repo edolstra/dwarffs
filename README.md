@@ -26,6 +26,8 @@ this:
 }
 ```
 
+Then set `programs.dwarffs.enable = true;`.
+
 You may also need an unstable version of Nix, which can be obtained
 from the `nix` flake:
 
