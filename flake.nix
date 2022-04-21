@@ -77,28 +77,37 @@
       });
 
       nixosModules.dwarffs =
-        { pkgs, ... }:
+        { config, lib, pkgs, ... }:
+        let cfg = config.programs.dwarffs;
+        in
         {
           nixpkgs.overlays = [ self.overlays.default ];
 
-          systemd.packages = [ pkgs.dwarffs ];
+          options = {
+            programs.dwarffs.enable = lib.mkEnableOption "Dwarffs, FUSE filesystem for DWARF debug info from the NixOS cache";
+          };
 
-          system.fsPackages = [ pkgs.dwarffs ];
+          config = lib.mkIf cfg.enable {
+            nixpkgs.overlays = [ self.overlay ];
 
-          systemd.units."run-dwarffs.automount".wantedBy = [ "multi-user.target" ];
+            systemd.packages = [ pkgs.dwarffs ];
 
-          environment.variables.NIX_DEBUG_INFO_DIRS = [ "/run/dwarffs" ];
+            system.fsPackages = [ pkgs.dwarffs ];
 
-          systemd.tmpfiles.rules = [ "d /var/cache/dwarffs 0755 dwarffs dwarffs 7d" ];
+            systemd.units."run-dwarffs.automount".wantedBy = [ "multi-user.target" ];
 
-          users.users.dwarffs =
-            { description = "Debug symbols file system daemon user";
-              group = "dwarffs";
-              isSystemUser = true;
-            };
+            environment.variables.NIX_DEBUG_INFO_DIRS = [ "/run/dwarffs" ];
 
-          users.groups.dwarffs = {};
+            systemd.tmpfiles.rules = [ "d /var/cache/dwarffs 0755 dwarffs dwarffs 7d" ];
+
+            users.users.dwarffs =
+              { description = "Debug symbols file system daemon user";
+                group = "dwarffs";
+                isSystemUser = true;
+              };
+
+            users.groups.dwarffs = {};
+          };
         };
-
     };
 }
