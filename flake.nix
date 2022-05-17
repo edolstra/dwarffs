@@ -16,7 +16,8 @@
       overlay = final: prev: {
 
         dwarffs = with final; let nix = final.nix; in stdenv.mkDerivation {
-          name = "dwarffs-${version}";
+          pname = "dwarffs";
+          inherit version;
 
           buildInputs = [ fuse nix nlohmann_json boost ];
 
