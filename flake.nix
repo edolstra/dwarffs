@@ -40,7 +40,7 @@
 
       defaultPackage = forAllSystems (system: (import nixpkgs {
         inherit system;
-        overlays = [ self.overlay nix.overlay ];
+        overlays = [ self.overlay nix.overlays.default ];
       }).dwarffs);
 
       checks = forAllSystems (system: {
