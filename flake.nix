@@ -55,7 +55,7 @@
             nodes = {
               client = { ... }: {
                 imports = [ self.nixosModules.dwarffs ];
-                nixpkgs.overlays = [ nix.overlay ];
+                nixpkgs.overlays = [ nix.overlays.default ];
               };
             };
 
