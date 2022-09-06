@@ -38,7 +38,7 @@ from the `nix` flake:
     nixosConfigurations.my-machine = nixpkgs.lib.nixosSystem {
       modules =
         [ dwarffs.nixosModules.dwarffs
-          { nixpkgs.overlays = [ nix.overlay ]; }
+          { nixpkgs.overlays = [ nix.overlays.default ]; }
           # ... other configuration ...
         ];
     };
