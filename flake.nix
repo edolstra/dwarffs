@@ -54,6 +54,8 @@
           };
 
           makeTest {
+            name = "dwarffs";
+
             nodes = {
               client = { ... }: {
                 imports = [ self.nixosModules.dwarffs ];
