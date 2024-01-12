@@ -1,7 +1,7 @@
 {
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
-  inputs.nix.url = "https://flakehub.com/f/NixOS/nix/2.17.0.tar.gz";
+  inputs.nix.url = "https://flakehub.com/f/NixOS/nix/2.19.0.tar.gz";
   inputs.nixpkgs.follows = "nix/nixpkgs";
 
   outputs = { self, nix, nixpkgs }:

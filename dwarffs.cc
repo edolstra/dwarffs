@@ -2,14 +2,16 @@
 #include <cstring>
 #include <regex>
 
+#include "util.hh"
 #include "logging.hh"
 #include "shared.hh"
 #include "filetransfer.hh"
 #include "archive.hh"
 #include "compression.hh"
-#include "fs-accessor.hh"
 #include "nar-accessor.hh"
 #include "sync.hh"
+#include "environment-variables.hh"
+#include "users.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -206,23 +208,23 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
 
                 auto accessor = makeNarAccessor(std::move(res.data));
 
-                std::function<void(const Path &)> doPath;
+                std::function<void(const CanonPath &)> doPath;
 
                 std::regex debugFileRegex("^/lib/debug/\\.build-id/[0-9a-f]{2}/[0-9a-f]{38}\\.debug$");
                 std::string debugFilePrefix = "/lib/debug/.build-id/";
 
-                doPath = [&](const Path & curPath) {
-                    auto st = accessor->stat(curPath);
+                doPath = [&](const CanonPath & curPath) {
+                    auto st = accessor->lstat(curPath);
 
-                    if (st.type == FSAccessor::Type::tDirectory) {
-                        for (auto & name : accessor->readDirectory(curPath))
-                            doPath(curPath + "/" + name);
+                    if (st.type == SourceAccessor::Type::tDirectory) {
+                        for (auto & [name, type] : accessor->readDirectory(curPath))
+                            doPath(curPath + name);
                     }
 
-                    else if (st.type == FSAccessor::Type::tRegular && std::regex_match(curPath, debugFileRegex)) {
+                    else if (st.type == SourceAccessor::Type::tRegular && std::regex_match(curPath.abs(), debugFileRegex)) {
                         std::string buildId2 =
-                            std::string(curPath, debugFilePrefix.size(), 2)  +
-                            std::string(curPath, debugFilePrefix.size() + 3, 38);
+                            curPath.abs().substr(debugFilePrefix.size(), 2) +
+                            curPath.abs().substr(debugFilePrefix.size() + 3, 38);
 
                         debug("got ELF debug info file for %s from NAR at '%s'", buildId2, uri);
 
@@ -230,7 +232,7 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
                     }
                 };
 
-                doPath("");
+                doPath(CanonPath::root);
 
                 /* Check if we actually got the debug info file we
                    want. */
