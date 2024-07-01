@@ -10,13 +10,9 @@
       supportedSystems = [ "x86_64-linux" "i686-linux" "aarch64-linux" ];
       forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
       version = "0.1.${nixpkgs.lib.substring 0 8 self.lastModifiedDate}.${self.shortRev or "dirty"}";
-    in
 
-    {
-
-      overlay = final: prev: {
-
-        dwarffs = with final; let nix = final.nix; in stdenv.mkDerivation {
+      packageFunction = { stdenv, fuse, nix, nlohmann_json, boost }:
+        stdenv.mkDerivation {
           pname = "dwarffs";
           inherit version;
 
@@ -38,6 +34,12 @@
             '';
         };
 
+    in
+
+    {
+
+      overlay = final: prev: {
+        dwarffs = final.callPackage packageFunction {};
       };
 
       defaultPackage = forAllSystems (system: (import nixpkgs {
