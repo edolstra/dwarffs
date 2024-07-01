@@ -76,14 +76,24 @@
           };
       });
 
-      nixosModules.dwarffs =
-        { pkgs, ... }:
-        {
-          nixpkgs.overlays = [ self.overlay ];
+      nixosModules.dwarffs = { config, lib, pkgs, ... }:
+      let cfg = config.services.dwarffs;
+      in
+      {
+        options.services.dwarffs = {
+          package = lib.mkOption {
+            type = lib.types.package;
+            description = ''
+              Which dwarffs package to use.
+            '';
+            defaultText = lib.literalMD ''a build using the pinned nix and nixpkgs of the `dwarffs` flake'';
+            default = self.defaultPackage.${pkgs.stdenv.hostPlatform.system};
+          };
+        };
+        config = {
+          systemd.packages = [ cfg.package ];
 
-          systemd.packages = [ pkgs.dwarffs ];
-
-          system.fsPackages = [ pkgs.dwarffs ];
+          system.fsPackages = [ cfg.package ];
 
           systemd.units."run-dwarffs.automount".wantedBy = [ "multi-user.target" ];
 
@@ -99,6 +109,6 @@
 
           users.groups.dwarffs = {};
         };
-
+      };
     };
 }
