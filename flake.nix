@@ -10,13 +10,9 @@
       supportedSystems = [ "x86_64-linux" "i686-linux" "aarch64-linux" ];
       forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
       version = "0.1.${nixpkgs.lib.substring 0 8 self.lastModifiedDate}.${self.shortRev or "dirty"}";
-    in
 
-    {
-
-      overlay = final: prev: {
-
-        dwarffs = with final; let nix = final.nix; in stdenv.mkDerivation {
+      packageFunction = { stdenv, fuse, nix, nlohmann_json, boost }:
+        stdenv.mkDerivation {
           pname = "dwarffs";
           inherit version;
 
@@ -38,6 +34,12 @@
             '';
         };
 
+    in
+
+    {
+
+      overlay = final: prev: {
+        dwarffs = final.callPackage packageFunction {};
       };
 
       defaultPackage = forAllSystems (system: (import nixpkgs {
@@ -74,14 +76,24 @@
           };
       });
 
-      nixosModules.dwarffs =
-        { pkgs, ... }:
-        {
-          nixpkgs.overlays = [ self.overlay ];
+      nixosModules.dwarffs = { config, lib, pkgs, ... }:
+      let cfg = config.services.dwarffs;
+      in
+      {
+        options.services.dwarffs = {
+          package = lib.mkOption {
+            type = lib.types.package;
+            description = ''
+              Which dwarffs package to use.
+            '';
+            defaultText = lib.literalMD ''a build using the pinned nix and nixpkgs of the `dwarffs` flake'';
+            default = self.defaultPackage.${pkgs.stdenv.hostPlatform.system};
+          };
+        };
+        config = {
+          systemd.packages = [ cfg.package ];
 
-          systemd.packages = [ pkgs.dwarffs ];
-
-          system.fsPackages = [ pkgs.dwarffs ];
+          system.fsPackages = [ cfg.package ];
 
           systemd.units."run-dwarffs.automount".wantedBy = [ "multi-user.target" ];
 
@@ -97,6 +109,6 @@
 
           users.groups.dwarffs = {};
         };
-
+      };
     };
 }
