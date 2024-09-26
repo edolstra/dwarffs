@@ -218,7 +218,7 @@ std::shared_ptr<DebugFile> haveDebugFileUncached(const std::string & buildId, bo
 
                     if (st.type == SourceAccessor::Type::tDirectory) {
                         for (auto & [name, type] : accessor->readDirectory(curPath))
-                            doPath(curPath + name);
+                            doPath(curPath / name);
                     }
 
                     else if (st.type == SourceAccessor::Type::tRegular && std::regex_match(curPath.abs(), debugFileRegex)) {
