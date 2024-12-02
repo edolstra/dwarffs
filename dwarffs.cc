@@ -326,7 +326,7 @@ static int dwarffs_getattr(const char * path_, struct stat * stbuf)
         return res;
 
     } catch (std::exception & e) {
-        ignoreException();
+        ignoreExceptionExceptInterrupt();
         return -EIO;
     }
 }
@@ -375,7 +375,7 @@ static int dwarffs_open(const char * path_, struct fuse_file_info * fi)
         return 0;
 
     } catch (std::exception & e) {
-        ignoreException();
+        ignoreExceptionExceptInterrupt();
         return -EIO;
     }
 }
@@ -417,7 +417,7 @@ static int dwarffs_read(const char * path_, char * buf, size_t size, off_t offse
             return -ENOENT;
 
     } catch (std::exception & e) {
-        ignoreException();
+        ignoreExceptionExceptInterrupt();
         return -EIO;
     }
 }
