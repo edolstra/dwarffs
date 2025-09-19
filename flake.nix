@@ -1,7 +1,7 @@
 {
   description = "A filesystem that fetches DWARF debug info from the Internet on demand";
 
-  inputs.nix.url = "https://flakehub.com/f/NixOS/nix/2.25.tar.gz";
+  inputs.nix.url = "https://flakehub.com/f/NixOS/nix/2.28.tar.gz";
   inputs.nixpkgs.follows = "nix/nixpkgs";
 
   outputs = { self, nix, nixpkgs }:
@@ -22,7 +22,7 @@
 
           buildInputs = [ fuse nix nlohmann_json boost ];
 
-          NIX_CFLAGS_COMPILE = "-I ${nix.dev}/include/nix -include ${nix.dev}/include/nix/config.h -D_FILE_OFFSET_BITS=64 -DVERSION=\"${version}\"";
+          NIX_CFLAGS_COMPILE = "-I ${nix.dev}/include/nix -D_FILE_OFFSET_BITS=64 -DVERSION=\"${version}\"";
 
           src = self;
 

@@ -2,16 +2,16 @@
 #include <cstring>
 #include <regex>
 
-#include "util.hh"
-#include "logging.hh"
-#include "shared.hh"
-#include "filetransfer.hh"
-#include "archive.hh"
-#include "compression.hh"
-#include "nar-accessor.hh"
-#include "sync.hh"
-#include "environment-variables.hh"
-#include "users.hh"
+#include "util/util.hh"
+#include "util/logging.hh"
+#include "main/shared.hh"
+#include "store/filetransfer.hh"
+#include "util/archive.hh"
+#include "util/compression.hh"
+#include "store/nar-accessor.hh"
+#include "util/sync.hh"
+#include "util/environment-variables.hh"
+#include "util/users.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
